@@ -1,0 +1,153 @@
+---
+title: "Making a Random Forest Model on the College dataset"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+library(statsr)
+```
+
+### Load data
+
+
+```{r load-data}
+library(ISLR)
+head(College)
+df<-College
+```
+
+
+
+
+* * *
+
+## Part 1: EDA
+```{r}
+
+library(ggplot2)
+ggplot(df,aes(Room.Board,Grad.Rate)) + geom_point(aes(color=Private))
+```
+
+```{r}
+ggplot(df,aes(F.Undergrad)) + geom_histogram(aes(fill=Private),color='black',bins=50)
+```
+
+```{r}
+ggplot(df,aes(Grad.Rate)) + geom_histogram(aes(fill=Private),color='black',bins=50)
+```
+
+Reseting Graduation rate to 100% for colleges with more than 100% college graduation rate
+
+```{r}
+subset(df,Grad.Rate > 100)
+df['Cazenovia College','Grad.Rate'] <- 100
+```
+
+* * *
+
+## Part 2: Splitting the data
+
+```{r}
+library(caTools)
+
+set.seed(101) 
+
+sample = sample.split(df$Private, SplitRatio = .70)
+train = subset(df, sample == TRUE)
+test = subset(df, sample == FALSE)
+```
+
+* * *
+
+## Part 3: Modeling a Decision Tree
+```{r}
+library(rpart)
+tree <- rpart(Private ~.,method='class',data = train)
+```
+
+
+Predicting the test data
+
+```{r}
+tree.preds <- predict(tree,test)
+
+head(tree.preds)
+```
+Turning these two columns into one column to match the original Yes/No Label for a Private column.
+
+```{r}
+tree.preds <- as.data.frame(tree.preds)
+joiner <- function(x){
+    if (x>=0.5){
+        return('Yes')
+    }else{
+        return("No")
+    }
+}
+```
+
+
+```{r}
+tree.preds$Private<-sapply(tree.preds$Yes,joiner)
+```
+
+
+```{r}
+head(tree.preds)
+```
+
+
+```{r}
+
+table(tree.preds$Private,test$Private)
+```
+
+Plotting our tree.
+```{r}
+
+library(rpart.plot)
+prp(tree)
+```
+
+## Making a Random Forest Model
+
+```{r}
+library(randomForest)
+rf.model <- randomForest(Private ~ . , data = train,importance = TRUE, ntree=400)
+```
+
+
+```{r}
+rf.model$confusion
+```
+
+
+
+```{r}
+rf.model$importance
+```
+
+Making Predictions
+```{r}
+
+p <- predict(rf.model,test)
+```
+
+```{r}
+table(p,test$Private)
+```
+
+
+
+
+
